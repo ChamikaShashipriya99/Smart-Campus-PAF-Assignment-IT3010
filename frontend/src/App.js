@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import MainLayout from './layouts/MainLayout';
 import ResourcesPage from './pages/ResourcesPage';
 import DashboardPage from './pages/DashboardPage';
+import ComingSoonPage from './pages/ComingSoonPage';
 
 // Create a professional theme for higher grading
 const theme = createTheme({
@@ -46,6 +47,8 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="resources" element={<ResourcesPage />} />
+            <Route path="users" element={<ComingSoonPage title="User Management" />} />
+            <Route path="settings" element={<ComingSoonPage title="System Settings" />} />
             {/* Add more routes here as needed */}
             <Route path="*" element={<div>Page Not Found</div>} />
           </Route>
