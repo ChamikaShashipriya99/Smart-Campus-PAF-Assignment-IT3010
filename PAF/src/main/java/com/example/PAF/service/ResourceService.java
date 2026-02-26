@@ -75,6 +75,15 @@ public class ResourceService {
     }
 
     /**
+     * Updates only the image URL for a resource.
+     */
+    public Resource updateImageUrl(Long id, String imageUrl) {
+        Resource resource = getResourceById(id);
+        resource.setImageUrl(imageUrl);
+        return resourceRepository.save(resource);
+    }
+
+    /**
      * Deletes a resource by ID.
      */
     public void deleteResource(Long id) {
@@ -88,7 +97,7 @@ public class ResourceService {
      * Advanced searching for resources based on filters.
      * Supports combination of parameters using JPA Specifications.
      */
-    public List<Resource> searchResources(String type, Integer capacity, String location) {
+    public List<Resource> searchResources(String type, Integer capacity, String location, Status status) {
         return resourceRepository.findAll((Specification<Resource>) (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -104,6 +113,10 @@ public class ResourceService {
                 predicates.add(criteriaBuilder.like(
                         criteriaBuilder.lower(root.get("location")),
                         "%" + location.toLowerCase() + "%"));
+            }
+
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));

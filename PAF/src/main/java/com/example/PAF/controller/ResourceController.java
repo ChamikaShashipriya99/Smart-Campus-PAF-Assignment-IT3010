@@ -40,9 +40,10 @@ public class ResourceController {
     public ResponseEntity<List<Resource>> searchResources(
             @RequestParam(required = false) String type,
             @RequestParam(required = false) Integer capacity,
-            @RequestParam(required = false) String location) {
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) com.example.PAF.model.Status status) {
 
-        List<Resource> resources = resourceService.searchResources(type, capacity, location);
+        List<Resource> resources = resourceService.searchResources(type, capacity, location, status);
         return ResponseEntity.ok(resources);
     }
 
@@ -98,5 +99,35 @@ public class ResourceController {
     @GetMapping("/analytics")
     public ResponseEntity<ResourceAnalyticsDTO> getResourceAnalytics() {
         return ResponseEntity.ok(resourceService.getResourceAnalytics());
+    }
+
+    /**
+     * POST /api/resources/{id}/image - Upload an image for a resource.
+     * [Innovation]: Added as a premium feature for Module A.
+     */
+    @PostMapping("/{id}/image")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Resource> uploadImage(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws Exception {
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Define storage path
+        String uploadDir = "uploads/resources/";
+        String fileName = java.util.UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        java.nio.file.Path path = java.nio.file.Paths.get(uploadDir + fileName);
+
+        // Create directory if not exists
+        java.nio.file.Files.createDirectories(path.getParent());
+
+        // Save file
+        java.nio.file.Files.copy(file.getInputStream(), path);
+
+        // Update database (relative URL for frontend)
+        String imageUrl = "/uploads/resources/" + fileName;
+        return ResponseEntity.ok(resourceService.updateImageUrl(id, imageUrl));
     }
 }

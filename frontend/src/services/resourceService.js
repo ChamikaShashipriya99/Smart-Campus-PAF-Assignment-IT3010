@@ -64,6 +64,22 @@ const resourceService = {
     },
 
     /**
+     * Upload an image for a specific resource.
+     * @param {number} id 
+     * @param {File} file 
+     * @returns {Promise} Axios response
+     */
+    uploadImage: async (id, file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return await api.post(`/resources/${id}/image`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
+
+    /**
      * Fetch resource analytics (summary stats and distribution).
      * [Innovation Module]: Used for Dashboard visualization.
      */

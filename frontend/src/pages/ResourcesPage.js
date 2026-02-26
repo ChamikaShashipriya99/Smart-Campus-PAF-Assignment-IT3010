@@ -21,7 +21,8 @@ import {
     TextField,
     MenuItem,
     Grid,
-    Snackbar
+    Snackbar,
+    Divider
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import {
@@ -31,7 +32,8 @@ import {
     Refresh as RefreshIcon,
     Save as SaveIcon,
     Search as SearchIcon,
-    RestartAlt as ResetIcon
+    RestartAlt as ResetIcon,
+    Close as CloseIcon
 } from '@mui/icons-material';
 import resourceService from '../services/resourceService';
 
@@ -42,13 +44,15 @@ const INITIAL_FORM_STATE = {
     location: '',
     status: 'ACTIVE',
     availabilityStart: '08:00',
-    availabilityEnd: '17:00'
+    availabilityEnd: '17:00',
+    imageUrl: ''
 };
 
 const INITIAL_FILTER_STATE = {
     type: '',
     capacity: '',
-    location: ''
+    location: '',
+    status: ''
 };
 
 const ResourcesPage = () => {
@@ -85,6 +89,13 @@ const ResourcesPage = () => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [resourceToDelete, setResourceToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // --- Details View State ---
+    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [selectedResource, setSelectedResource] = useState(null);
+
+    // --- File Upload State ---
+    const [selectedFile, setSelectedFile] = useState(null);
 
     // --- Notification State ---
     const [snackbar, setSnackbar] = useState({
@@ -168,6 +179,13 @@ const ResourcesPage = () => {
 
     const handleCloseDialog = () => {
         setOpen(false);
+        setSelectedFile(null); // Reset file selection
+    };
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setSelectedFile(e.target.files[0]);
+        }
     };
 
     const handleInputChange = (e) => {
@@ -195,13 +213,28 @@ const ResourcesPage = () => {
 
         setSubmitting(true);
         try {
+            let savedResource;
             if (editingId) {
-                await resourceService.updateResource(editingId, formData);
+                const response = await resourceService.updateResource(editingId, formData);
+                savedResource = response.data;
                 showNotification('Resource updated successfully');
             } else {
-                await resourceService.createResource(formData);
+                const response = await resourceService.createResource(formData);
+                savedResource = response.data;
                 showNotification('Resource created successfully');
             }
+
+            // [Innovation]: Handle Image Upload if a file was selected
+            if (selectedFile && savedResource) {
+                try {
+                    await resourceService.uploadImage(savedResource.id, selectedFile);
+                    showNotification('Image uploaded successfully');
+                } catch (imgErr) {
+                    showNotification('Resource saved, but image upload failed', 'warning');
+                    console.error('Image Upload Error:', imgErr);
+                }
+            }
+
             handleCloseDialog();
             fetchResources(isSearching ? filters : null);
         } catch (err) {
@@ -232,6 +265,16 @@ const ResourcesPage = () => {
         } finally {
             setDeleting(false);
         }
+    };
+
+    const handleOpenDetails = (resource) => {
+        setSelectedResource(resource);
+        setDetailsOpen(true);
+    };
+
+    const handleCloseDetails = () => {
+        setDetailsOpen(false);
+        setSelectedResource(null);
     };
 
     return (
@@ -281,14 +324,24 @@ const ResourcesPage = () => {
                             value={filters.capacity} onChange={handleFilterChange}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={3}>
+                    <Grid item xs={12} sm={2}>
+                        <TextField
+                            fullWidth select size="small" label="Status" name="status"
+                            value={filters.status} onChange={handleFilterChange}
+                        >
+                            <MenuItem value="">All Statuses</MenuItem>
+                            <MenuItem value="ACTIVE">ACTIVE</MenuItem>
+                            <MenuItem value="OUT_OF_SERVICE">OUT_OF_SERVICE</MenuItem>
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
                         <TextField
                             fullWidth size="small" label="Search Location" name="location"
                             value={filters.location} onChange={handleFilterChange}
                             placeholder="e.g. Block C"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={4} sx={{ display: 'flex', gap: 1.5 }}>
+                    <Grid item xs={12} sm={3} sx={{ display: 'flex', gap: 1.5 }}>
                         <Button
                             fullWidth variant="contained" color="primary"
                             startIcon={<SearchIcon />} onClick={handleSearch}
@@ -326,6 +379,7 @@ const ResourcesPage = () => {
                     <Table sx={{ minWidth: 650 }}>
                         <TableHead sx={{ bgcolor: 'primary.light', '& .MuiTableCell-head': { fontWeight: 'bold', color: 'primary.dark' } }}>
                             <TableRow>
+                                <TableCell sx={{ width: 60 }}></TableCell>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Type</TableCell>
                                 <TableCell>Capacity</TableCell>
@@ -337,8 +391,27 @@ const ResourcesPage = () => {
                         <TableBody>
                             {resources.length > 0 ? (
                                 resources.map((res) => (
-                                    <TableRow key={res.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                        <TableCell sx={{ fontWeight: 600 }}>{res.name}</TableCell>
+                                    <TableRow
+                                        key={res.id}
+                                        hover
+                                        sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                    >
+                                        <TableCell>
+                                            <Box
+                                                component="img"
+                                                src={res.imageUrl ? `http://localhost:8080${res.imageUrl}` : 'https://placehold.co/100x100?text=No+Image'}
+                                                sx={{
+                                                    width: 40,
+                                                    height: 40,
+                                                    borderRadius: 1.5,
+                                                    objectFit: 'cover',
+                                                    border: '1px solid',
+                                                    borderColor: 'grey.300'
+                                                }}
+                                                onError={(e) => { e.target.src = 'https://placehold.co/100x100?text=Error'; }}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>{res.name}</TableCell>
                                         <TableCell sx={{ fontSize: '0.9rem' }}>{res.type}</TableCell>
                                         <TableCell>{res.capacity}</TableCell>
                                         <TableCell>{res.location}</TableCell>
@@ -353,6 +426,12 @@ const ResourcesPage = () => {
                                             </Box>
                                         </TableCell>
                                         <TableCell align="right">
+                                            <Tooltip title="View Details">
+                                                <IconButton color="info" size="small" onClick={() => handleOpenDetails(res)}>
+                                                    <SearchIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+
                                             {/* [Conditional Rendering]: Only Admins see Edit/Delete */}
                                             {isAdmin ? (
                                                 <>
@@ -379,7 +458,7 @@ const ResourcesPage = () => {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} align="center" sx={{ py: 12 }}>
+                                    <TableCell colSpan={7} align="center" sx={{ py: 12 }}>
                                         <Typography color="text.secondary" variant="body1" sx={{ fontStyle: 'italic' }}>
                                             {isSearching ? 'No campus resources match your current selection.' : 'No resources have been registered yet.'}
                                         </Typography>
@@ -440,6 +519,20 @@ const ResourcesPage = () => {
                                     <MenuItem value="OUT_OF_SERVICE">OUT_OF_SERVICE</MenuItem>
                                 </TextField>
                             </Grid>
+                            <Grid item xs={12}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                                    {editingId ? 'Change Image (Optional)' : 'Upload Resource Image'}
+                                </Typography>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    style={{ width: '100%' }}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                    Files are stored securely in the system metadata.
+                                </Typography>
+                            </Grid>
                             <Grid item xs={6}>
                                 <TextField
                                     fullWidth label="Available From" name="availabilityStart" type="time"
@@ -469,6 +562,52 @@ const ResourcesPage = () => {
                         </Button>
                     </DialogActions>
                 </form>
+            </Dialog>
+
+            {/* --- Details View Dialog --- */}
+            <Dialog open={detailsOpen} onClose={handleCloseDetails} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    Resource Specifications
+                    <IconButton size="small" onClick={handleCloseDetails}><CloseIcon /></IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {selectedResource && (
+                        <Grid container spacing={3}>
+                            <Grid item xs={12}>
+                                <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 2 }}>
+                                    <Box
+                                        component="img"
+                                        src={selectedResource.imageUrl ? `http://localhost:8080${selectedResource.imageUrl}` : 'https://placehold.co/600x300?text=Resource+Preview'}
+                                        sx={{ width: '100%', height: 200, objectFit: 'cover' }}
+                                    />
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={12}>
+                                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>{selectedResource.name}</Typography>
+                                <Typography color="text.secondary" gutterBottom>{selectedResource.type} • {selectedResource.location}</Typography>
+                            </Grid>
+                            <Grid item xs={6}><Typography variant="caption">Capacity</Typography><Typography variant="body1" sx={{ fontWeight: 500 }}>{selectedResource.capacity} Person(s)</Typography></Grid>
+                            <Grid item xs={6}><Typography variant="caption">Current Status</Typography><Typography variant="body1" sx={{ fontWeight: 500, color: selectedResource.status === 'ACTIVE' ? 'success.main' : 'error.main' }}>{selectedResource.status}</Typography></Grid>
+
+                            <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
+
+                            <Grid item xs={12}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Auditing Information</Typography>
+                                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                                    <Grid container spacing={1}>
+                                        <Grid item xs={6}><Typography variant="caption">Created By</Typography><Typography variant="body2">{selectedResource.createdBy || 'Initial System'}</Typography></Grid>
+                                        <Grid item xs={6}><Typography variant="caption">Created On</Typography><Typography variant="body2">{selectedResource.createdAt ? new Date(selectedResource.createdAt).toLocaleString() : 'N/A'}</Typography></Grid>
+                                        <Grid item xs={6}><Typography variant="caption">Last Updated By</Typography><Typography variant="body2">{selectedResource.lastModifiedBy || 'N/A'}</Typography></Grid>
+                                        <Grid item xs={6}><Typography variant="caption">Last Updated On</Typography><Typography variant="body2">{selectedResource.updatedAt ? new Date(selectedResource.updatedAt).toLocaleString() : 'N/A'}</Typography></Grid>
+                                    </Grid>
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseDetails} variant="outlined" color="primary">Close</Button>
+                </DialogActions>
             </Dialog>
 
             {/* --- Delete Confirmation Dialog --- */}
