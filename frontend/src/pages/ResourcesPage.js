@@ -79,6 +79,11 @@ const ResourcesPage = () => {
     const [formErrors, setFormErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
+    // --- Delete Confirmation State ---
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [resourceToDelete, setResourceToDelete] = useState(null);
+    const [deleting, setDeleting] = useState(false);
+
     useEffect(() => {
         fetchResources();
     }, []);
@@ -188,14 +193,24 @@ const ResourcesPage = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this resource?')) {
-            try {
-                await resourceService.deleteResource(id);
-                setResources(resources.filter(r => r.id !== id));
-            } catch (err) {
-                alert('Action failed: Could not delete resource.');
-            }
+    const handleDeleteClick = (resource) => {
+        setResourceToDelete(resource);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!resourceToDelete) return;
+
+        setDeleting(true);
+        try {
+            await resourceService.deleteResource(resourceToDelete.id);
+            setResources(resources.filter(r => r.id !== resourceToDelete.id));
+            setDeleteDialogOpen(false);
+            setResourceToDelete(null);
+        } catch (err) {
+            alert('Action failed: Could not delete resource.');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -327,7 +342,11 @@ const ResourcesPage = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Remove Entry">
-                                                        <IconButton color="error" size="small" onClick={() => handleDelete(res.id)}>
+                                                        <IconButton
+                                                            onClick={() => handleDeleteClick(res)}
+                                                            color="error"
+                                                            size="small"
+                                                        >
                                                             <DeleteIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
@@ -430,6 +449,44 @@ const ResourcesPage = () => {
                         </Button>
                     </DialogActions>
                 </form>
+            </Dialog>
+
+            {/* --- Delete Confirmation Dialog --- */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => !deleting && setDeleteDialogOpen(false)}
+                PaperProps={{
+                    sx: { borderRadius: 3, p: 1, width: '400px' }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 'bold', pb: 1 }}>
+                    Confirm Deletion
+                </DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        Are you sure you want to delete <strong>{resourceToDelete?.name}</strong>?
+                        This action cannot be undone.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                        onClick={() => setDeleteDialogOpen(false)}
+                        color="inherit"
+                        disabled={deleting}
+                        sx={{ borderRadius: 2 }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={confirmDelete}
+                        color="error"
+                        variant="contained"
+                        disabled={deleting}
+                        sx={{ borderRadius: 2, px: 3 }}
+                    >
+                        {deleting ? <CircularProgress size={24} color="inherit" /> : 'Delete'}
+                    </Button>
+                </DialogActions>
             </Dialog>
         </Box>
     );
