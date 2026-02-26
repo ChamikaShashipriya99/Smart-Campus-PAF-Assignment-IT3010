@@ -20,8 +20,10 @@ import {
     DialogActions,
     TextField,
     MenuItem,
-    Grid
+    Grid,
+    Snackbar
 } from '@mui/material';
+import MuiAlert from '@mui/material/Alert';
 import {
     Add as AddIcon,
     Edit as EditIcon,
@@ -83,6 +85,21 @@ const ResourcesPage = () => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [resourceToDelete, setResourceToDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
+
+    // --- Notification State ---
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
+
+    const handleSnackbarClose = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
+    const showNotification = (message, severity = 'success') => {
+        setSnackbar({ open: true, message, severity });
+    };
 
     useEffect(() => {
         fetchResources();
@@ -180,13 +197,15 @@ const ResourcesPage = () => {
         try {
             if (editingId) {
                 await resourceService.updateResource(editingId, formData);
+                showNotification('Resource updated successfully');
             } else {
                 await resourceService.createResource(formData);
+                showNotification('Resource created successfully');
             }
             handleCloseDialog();
-            fetchResources(isSearching ? filters : null); // Auto-refresh table with current filter context
+            fetchResources(isSearching ? filters : null);
         } catch (err) {
-            alert('Failed to save resource. Check console for details.');
+            showNotification('Failed to save resource', 'error');
             console.error(err);
         } finally {
             setSubmitting(false);
@@ -207,8 +226,9 @@ const ResourcesPage = () => {
             setResources(resources.filter(r => r.id !== resourceToDelete.id));
             setDeleteDialogOpen(false);
             setResourceToDelete(null);
+            showNotification('Resource deleted successfully', 'error');
         } catch (err) {
-            alert('Action failed: Could not delete resource.');
+            showNotification('Action failed: Could not delete resource', 'error');
         } finally {
             setDeleting(false);
         }
@@ -488,6 +508,23 @@ const ResourcesPage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* --- Notifications --- */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleSnackbarClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <MuiAlert
+                    onClose={handleSnackbarClose}
+                    severity={snackbar.severity}
+                    variant="filled"
+                    sx={{ width: '100%', borderRadius: 2 }}
+                >
+                    {snackbar.message}
+                </MuiAlert>
+            </Snackbar>
         </Box>
     );
 };
