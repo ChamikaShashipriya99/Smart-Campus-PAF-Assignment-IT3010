@@ -18,12 +18,16 @@ public class DataInitializer {
                 // Initialize default users if the table is empty
                 User admin = User.builder()
                         .username("admin")
+                        .email("admin@smartcampus.com")
+                        .name("System Admin")
                         .password(passwordEncoder.encode("admin123"))
                         .role(Role.ROLE_ADMIN)
                         .build();
 
                 User user = User.builder()
                         .username("user")
+                        .email("user@smartcampus.com")
+                        .name("Test User")
                         .password(passwordEncoder.encode("user123"))
                         .role(Role.ROLE_USER)
                         .build();

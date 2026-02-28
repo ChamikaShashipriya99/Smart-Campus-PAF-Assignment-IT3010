@@ -11,17 +11,19 @@ const api = axios.create({
     baseURL: 'http://localhost:8080/api',
     headers: {
         'Content-Type': 'application/json',
-        // Basic Auth for 'admin' : 'admin123'
-        // btoa('admin:admin123') = 'YWRtaW46YWRtaW4xMjM='
-        'Authorization': 'Basic YWRtaW46YWRtaW4xMjM=',
     },
 });
 
-// Optional: Add request interceptors (e.g., for JWT)
+// Interceptor to add JWT to every request
 api.interceptors.request.use(
     (config) => {
-        // const token = localStorage.getItem('token');
-        // if (token) config.headers.Authorization = `Bearer ${token}`;
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            if (user && user.token) {
+                config.headers.Authorization = `Bearer ${user.token}`;
+            }
+        }
         return config;
     },
     (error) => Promise.reject(error)
